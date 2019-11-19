@@ -20,7 +20,7 @@ import inspect
 
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
-warnings.filterwarnings("ignore", category=LineSearchWarning)
+
 seed = 1075
 np.random.seed(seed)
 
@@ -41,9 +41,9 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = .25, rando
 
 iter_max = 25
 pop_size = 15
-c1 = 1.5
-c2 = 1.5
-w = 1.2
+c1 = 2
+c2 = 2.5
+w = 1.5
 
 ## original
 # w = 0.729
@@ -69,8 +69,10 @@ for i in range(pop_size):
     p[2] = 0.0 #velocity
     p[3] = p[0] #best
     swarm.append(p)
+out2 = open("PSO_paramsBest.txt", "w")
 
-out = open("PSO_logloss.csv", "w")
+out2.write("Params:\n"+"c1: "+str(c1)+"\n"+"c2: "+str(c2)+"\n"+"w: "+str(w)+"\n"+"swarm size: "+str(pop_size)+"\n"+"iterations: "+str(iter_max)+"\n")
+out = open("PSO_run2.csv", "w")
 print(swarm[0])
 j = 0
 # let the first particle be the global best
@@ -92,6 +94,7 @@ while j < iter_max :
             print('\n*** Global Best! '+str(fitness)+"\n")
             out.write(str(j)+","+str(fitness)+"\n")
             gbest = p
+            gbest[3] = p[0]
         if fitness < p[1]:
             print("--- Local Best! "+str(fitness))
             p[1] = fitness
@@ -118,6 +121,8 @@ while j < iter_max :
 
           
     j  += 1
+for clf in gbest[0].keys():
+    out2.write(clf+'\t'+str(gbest[0][clf])+'\n')
 
 
 
