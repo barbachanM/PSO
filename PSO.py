@@ -8,7 +8,7 @@ from sklearn.feature_selection import SelectFromModel
 from sklearn.ensemble import RandomForestClassifier,ExtraTreesClassifier,BaggingClassifier,VotingClassifier, AdaBoostClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression, RidgeClassifier
 from sklearn.pipeline import Pipeline
-from sklearn.metrics import accuracy_score, log_loss
+from sklearn.metrics import accuracy_score, log_loss, roc_auc_score
 from sklearn.model_selection import train_test_split 
 from sklearn.model_selection import cross_val_score
 from sklearn.neighbors import KNeighborsClassifier
@@ -27,7 +27,11 @@ np.random.seed(seed)
 
 expData = pd.read_csv("../expData_PSO.csv", index_col = 0)
 
-y = expData['Group'].values
+group = expData['Group'].values
+
+le = preprocessing.LabelEncoder()
+# Converting string labels into numbers.
+y=le.fit_transform(group)
 
 yDF = expData['Group']
 
@@ -39,11 +43,11 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = .25, rando
 
 
 
-iter_max = 25
-pop_size = 15
+iter_max = 20
+pop_size = 25
 c1 = 2
 c2 = 2.5
-w = 1.5
+w =  1.3
 
 ## original
 # w = 0.729
@@ -59,20 +63,21 @@ def errorFunction(classifier):
 
 hyperPar = []
 for i in range(pop_size):
-    particle = {'RF':np.random.randint(10,150), 'SVM':np.random.uniform(1.0,7.0), 'LogReg':[np.random.uniform(1.0,7.0),np.random.randint(10,100)], 'KNN':np.random.randint(5,50)} #hyperparam
+    particle = {'RF':np.random.randint(10,50), 'SVM':np.random.uniform(1.0,7.0), 'LogReg':[np.random.uniform(1.0,7.0),np.random.randint(10,100)], 'KNN':np.random.randint(5,50)} #hyperparam
     hyperPar.append(particle)
 swarm = []
 for i in range(pop_size):
     p = {}
     p[0] = hyperPar[i] #hyperparameters
-    p[1] = 99999999  #fitness
+    p[1] = 999999999 #logLoss and roc_auc
     p[2] = 0.0 #velocity
     p[3] = p[0] #best
     swarm.append(p)
-out2 = open("PSO_paramsBest.txt", "w")
+out2 = open("PSO_paramsBestParticle.txt", "w")
 
 out2.write("Params:\n"+"c1: "+str(c1)+"\n"+"c2: "+str(c2)+"\n"+"w: "+str(w)+"\n"+"swarm size: "+str(pop_size)+"\n"+"iterations: "+str(iter_max)+"\n")
-out = open("PSO_run2.csv", "w")
+out = open("PSO_trace.csv", "w")
+out.write("Iteration,LogLoss")
 print(swarm[0])
 j = 0
 # let the first particle be the global best
@@ -92,7 +97,6 @@ while j < iter_max :
         if fitness < gbest[1]:
 
             print('\n*** Global Best! '+str(fitness)+"\n")
-            out.write(str(j)+","+str(fitness)+"\n")
             gbest = p
             gbest[3] = p[0]
         if fitness < p[1]:
@@ -109,16 +113,26 @@ while j < iter_max :
                 ## C
                 v = round(w*p[2] + c1 * np.random.uniform(0,1) * (p[3][clf][1] - p[0][clf][1]) + c2 * np.random.uniform(0,1) * (gbest[3][clf][1] - p[3][clf][1]))
                 p[0][clf][1] = abs(p[0][clf][1] + v) 
-            elif clf == 'RF' or clf == 'KNN' :
-                ## n_estimarors (RF) n_neighbors (KNN)
+            elif clf == 'RF':
+                ## n_estimarors (RF) 
                 v = w*p[2] + c1 * np.random.uniform(0,1) * (p[3][clf] - p[0][clf]) + c2 * np.random.uniform(0,1) * (gbest[3][clf] - p[3][clf])
                 p[0][clf] = abs(p[0][clf] + round(v))
+            elif clf == 'KNN' : #n_neighbors (KNN)
+                v = w*p[2] + c1 * np.random.uniform(0,1) * (p[3][clf] - p[0][clf]) + c2 * np.random.uniform(0,1) * (gbest[3][clf] - p[3][clf])
+                newPosition = abs(p[0][clf] + round(v))
+                if newPosition == 0:
+                    print("N neighbours = 0")
+                    p[0][clf] = np.random.randint(5,50)
+                else:
+                    p[0][clf] = newPosition
+
+                    
 
             else:#C (SVM)
                 v = w*p[2] + c1 * np.random.uniform(0,1) * (p[3][clf] - p[0][clf]) + c2 * np.random.uniform(0,1) * (gbest[3][clf] - p[3][clf])
                 p[0][clf] = abs(p[0][clf] + v)
 
-
+    out.write(str(j+1)+","+str(gbest[1])+"\n")
           
     j  += 1
 for clf in gbest[0].keys():
